@@ -41,3 +41,9 @@ window.adBlockerInstance.forceCheck()
 ## 注意事項
 
 この拡張機能は研究・学習目的で作成されています。適切な利用を心がけてください。
+
+## 参考
+
+Claud Proに作ってもらいました。
+
+[Chrome拡張を自作しよう！広告ブロック編](https://rcie.hatenablog.com/entry/2024/05/21/212159)
