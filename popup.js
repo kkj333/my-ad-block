@@ -14,6 +14,7 @@ class PopupController {
     await this.loadSettings();
     this.setupEventListeners();
     this.updateUI();
+    this.renderWhitelist();
   }
 
   async getCurrentTab() {
@@ -35,7 +36,6 @@ class PopupController {
       this.disabledSites = data.disabledSites || [];
 
       this.isWhitelisted = this.whitelistedDomains.includes(this.currentDomain);
-      // ホワイトリストになく、かつ、無効サイトリストにもない場合のみ有効
       this.isEnabled = !this.isWhitelisted && !this.disabledSites.includes(this.currentDomain);
 
     } catch (error) {
@@ -47,7 +47,6 @@ class PopupController {
 
   async saveSettings() {
     try {
-      // サイトごとのON/OFF設定を保存
       if (this.isEnabled) {
         this.disabledSites = this.disabledSites.filter(d => d !== this.currentDomain);
       } else {
@@ -75,6 +74,7 @@ class PopupController {
       await chrome.storage.local.set({ whitelistedDomains: this.whitelistedDomains });
       this.isEnabled = !this.isWhitelisted;
       this.updateUI();
+      this.renderWhitelist();
       this.notifyContentScript();
     } catch (error) {
       console.error('Failed to save whitelist settings:', error);
@@ -82,8 +82,7 @@ class PopupController {
   }
 
   setupEventListeners() {
-    const siteToggle = document.getElementById('site-toggle');
-    siteToggle.addEventListener('change', async (e) => {
+    document.getElementById('site-toggle').addEventListener('change', async (e) => {
       this.isEnabled = e.target.checked;
       await this.saveSettings();
       this.notifyContentScript();
@@ -96,6 +95,11 @@ class PopupController {
 
     document.getElementById('reset-site').addEventListener('click', () => {
       this.resetSiteSettings();
+    });
+
+    document.getElementById('whitelist-manager-toggle').addEventListener('click', () => {
+        const manager = document.getElementById('whitelist-manager');
+        manager.classList.toggle('hidden');
     });
   }
 
@@ -130,31 +134,53 @@ class PopupController {
 
   async updateBlockCount() {
     try {
+      // Check if currentTab is valid and its URL is accessible by content scripts
+      if (!this.currentTab || !this.currentTab.url ||
+          !(this.currentTab.url.startsWith('http://') || this.currentTab.url.startsWith('https://'))) {
+        document.getElementById('block-count').textContent = 'ブロック数: - (非対応ページ)';
+        return; // Do not attempt to send message
+      }
+
       const result = await chrome.tabs.sendMessage(this.currentTab.id, { action: 'getStats' });
       if (result && typeof result.blockedCount === 'number') {
         document.getElementById('block-count').textContent = `ブロック数: ${result.blockedCount}`;
       }
     } catch (error) {
-      document.getElementById('block-count').textContent = 'ブロック数: -';
+      if (error.message && error.message.includes('Receiving end does not exist')) {
+        document.getElementById('block-count').textContent = 'ブロック数: - (スクリプト未実行)';
+      } else {
+        document.getElementById('block-count').textContent = 'ブロック数: - (エラー)';
+        console.error('Failed to get block count:', error);
+      }
     }
   }
 
   async notifyContentScript() {
     try {
-      // isEnabledは、ホワイトリストとサイトごと設定を両方反映した最終的な状態
+      // Check if currentTab is valid and its URL is accessible by content scripts
+      if (!this.currentTab || !this.currentTab.url ||
+          !(this.currentTab.url.startsWith('http://') || this.currentTab.url.startsWith('https://'))) {
+        console.warn('Content script cannot be messaged on this tab type.');
+        return; // Do not attempt to send message
+      }
+
       const finalEnabledState = !this.isWhitelisted && this.isEnabled;
       await chrome.tabs.sendMessage(this.currentTab.id, {
         action: 'toggleBlocking',
         enabled: finalEnabledState
       });
     } catch (error) {
-      console.error('Failed to notify content script:', error);
+      // Only log if it's an unexpected error, not the "Receiving end does not exist"
+      if (error.message && error.message.includes('Receiving end does not exist')) {
+        console.warn('Failed to notify content script: Content script not active on this tab.');
+      } else {
+        console.error('Failed to notify content script:', error);
+      }
     }
   }
 
   async resetSiteSettings() {
     try {
-      // 両方の設定から現在のドメインを削除
       this.disabledSites = this.disabledSites.filter(d => d !== this.currentDomain);
       this.whitelistedDomains = this.whitelistedDomains.filter(d => d !== this.currentDomain);
       
@@ -163,11 +189,53 @@ class PopupController {
         whitelistedDomains: this.whitelistedDomains
       });
 
-      // ページをリロードして即時反映
       chrome.tabs.reload(this.currentTab.id);
       window.close();
     } catch (error) {
       console.error('Failed to reset settings:', error);
+    }
+  }
+
+  renderWhitelist() {
+    const listElement = document.getElementById('whitelist-list');
+    listElement.innerHTML = '';
+
+    if (this.whitelistedDomains.length === 0) {
+        listElement.innerHTML = '<li>ホワイトリストに登録されているサイトはありません。</li>';
+        return;
+    }
+
+    this.whitelistedDomains.forEach(domain => {
+        const li = document.createElement('li');
+        
+        const domainSpan = document.createElement('span');
+        domainSpan.className = 'domain';
+        domainSpan.textContent = domain;
+        
+        const removeButton = document.createElement('button');
+        removeButton.className = 'remove-btn';
+        removeButton.textContent = '×';
+        removeButton.addEventListener('click', () => this.removeFromWhitelist(domain));
+        
+        li.appendChild(domainSpan);
+        li.appendChild(removeButton);
+        listElement.appendChild(li);
+    });
+  }
+
+  async removeFromWhitelist(domain) {
+    this.whitelistedDomains = this.whitelistedDomains.filter(d => d !== domain);
+    await chrome.storage.local.set({ whitelistedDomains: this.whitelistedDomains });
+    
+    // UIを再描画
+    this.renderWhitelist();
+
+    // もし現在のサイトを削除した場合は、UI全体を更新
+    if (domain === this.currentDomain) {
+        this.isWhitelisted = false;
+        this.isEnabled = true;
+        this.updateUI();
+        this.notifyContentScript();
     }
   }
 }
