@@ -71,14 +71,21 @@ class AdBlocker {
     
     async loadSiteSettings() {
         try {
-            // Chrome Storage APIが利用可能かチェック
             if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                const result = await chrome.storage.local.get([this.currentDomain]);
-                this.isEnabled = result[this.currentDomain] !== false; // デフォルトはtrue
-                console.log(`Site settings loaded for ${this.currentDomain}:`, this.isEnabled);
+                const data = await chrome.storage.local.get(['whitelistedDomains', 'disabledSites']);
+                const whitelistedDomains = data.whitelistedDomains || [];
+                const disabledSites = data.disabledSites || [];
+
+                if (whitelistedDomains.includes(this.currentDomain)) {
+                    this.isEnabled = false;
+                    console.log(`Ad blocking disabled for whitelisted domain: ${this.currentDomain}`);
+                } else if (disabledSites.includes(this.currentDomain)) {
+                    this.isEnabled = false;
+                    console.log(`Ad blocking temporarily disabled for domain: ${this.currentDomain}`);
+                } else {
+                    this.isEnabled = true;
+                }
             } else {
-                // Chrome Storage APIが利用できない場合（開発環境等）
-                console.log('Chrome Storage API not available, using default settings');
                 this.isEnabled = true;
             }
         } catch (error) {
