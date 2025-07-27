@@ -10,6 +10,10 @@ body {
   padding: 16px;
 }
 
+.hidden {
+    display: none;
+}
+
 /* ヘッダー */
 .header {
   border-bottom: 1px solid #e0e0e0;
@@ -156,8 +160,60 @@ button {
 .footer {
   margin-top: 16px;
   text-align: center;
-  font-size: 12px;
-  color: #888;
   border-top: 1px solid #e0e0e0;
   padding-top: 12px;
+}
+
+#whitelist-manager-toggle {
+    background: none;
+    border: none;
+    color: #007aff;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+/* ホワイトリスト管理 */
+#whitelist-manager {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e0e0e0;
+}
+
+#whitelist-manager h2 {
+    font-size: 16px;
+    margin: 0 0 10px 0;
+}
+
+#whitelist-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#whitelist-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+#whitelist-list li:nth-child(odd) {
+    background-color: #f0f0f0;
+}
+
+#whitelist-list .domain {
+    font-size: 14px;
+    word-break: break-all;
+}
+
+#whitelist-list .remove-btn {
+    background: none;
+    border: none;
+    color: #ff3b30;
+    cursor: pointer;
+    font-size: 18px;
+    padding: 5px;
 }
