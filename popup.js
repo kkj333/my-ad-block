@@ -134,12 +134,24 @@ class PopupController {
 
   async updateBlockCount() {
     try {
+      // Check if currentTab is valid and its URL is accessible by content scripts
+      if (!this.currentTab || !this.currentTab.url ||
+          !(this.currentTab.url.startsWith('http://') || this.currentTab.url.startsWith('https://'))) {
+        document.getElementById('block-count').textContent = 'ブロック数: - (非対応ページ)';
+        return; // Do not attempt to send message
+      }
+
       const result = await chrome.tabs.sendMessage(this.currentTab.id, { action: 'getStats' });
       if (result && typeof result.blockedCount === 'number') {
         document.getElementById('block-count').textContent = `ブロック数: ${result.blockedCount}`;
       }
     } catch (error) {
-      document.getElementById('block-count').textContent = 'ブロック数: -';
+      if (error.message && error.message.includes('Receiving end does not exist')) {
+        document.getElementById('block-count').textContent = 'ブロック数: - (スクリプト未実行)';
+      } else {
+        document.getElementById('block-count').textContent = 'ブロック数: - (エラー)';
+        console.error('Failed to get block count:', error);
+      }
     }
   }
 
