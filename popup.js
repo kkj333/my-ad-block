@@ -58,11 +58,6 @@ class PopupController {
       this.updateToggleLabel();
     });
 
-    // 手動チェックボタン
-    document.getElementById('force-check').addEventListener('click', () => {
-      this.forceCheck();
-    });
-
     // リセットボタン
     document.getElementById('reset-site').addEventListener('click', () => {
       this.resetSiteSettings();
@@ -109,20 +104,6 @@ class PopupController {
     }
   }
 
-  async forceCheck() {
-    try {
-      await chrome.tabs.sendMessage(this.currentTab.id, {
-        action: 'forceCheck'
-      });
-      
-      // 少し待ってから統計を更新
-      setTimeout(() => {
-        this.updateBlockCount();
-      }, 500);
-    } catch (error) {
-      console.error('Failed to force check:', error);
-    }
-  }
 
   async resetSiteSettings() {
     try {

@@ -6,6 +6,7 @@ class AdBlocker {
         this.processedElements = new WeakSet();
         this.isEnabled = true;
         this.currentDomain = window.location.hostname;
+        this.periodicCheckInterval = null;
         
         // より厳密な広告検出パターン
         this.patterns = {
@@ -50,6 +51,9 @@ class AdBlocker {
                         setTimeout(() => this.hideAds(), 500);
                     });
                 }
+                
+                // 定期的なチェックを開始
+                this.startPeriodicCheck();
             }
             
             console.log('AdBlocker initialized:', this.isEnabled ? 'enabled' : 'disabled');
@@ -107,12 +111,6 @@ class AdBlocker {
                             });
                             break;
                             
-                        case 'forceCheck':
-                            if (this.isEnabled) {
-                                this.hideAds();
-                            }
-                            sendResponse({ success: true });
-                            break;
                     }
                 });
             }
@@ -126,6 +124,7 @@ class AdBlocker {
             this.setupMutationObserver();
         }
         this.hideAds();
+        this.startPeriodicCheck();
         console.log('AdBlocker started');
     }
 
@@ -134,7 +133,30 @@ class AdBlocker {
             this.observer.disconnect();
             this.observer = null;
         }
+        this.stopPeriodicCheck();
         console.log('AdBlocker stopped');
+    }
+
+    startPeriodicCheck() {
+        // 既存のインターバルがあれば停止
+        this.stopPeriodicCheck();
+        
+        // 3秒ごとに広告チェックを実行
+        this.periodicCheckInterval = setInterval(() => {
+            if (this.isEnabled) {
+                this.hideAds();
+            }
+        }, 3000);
+        
+        console.log('Periodic check started');
+    }
+
+    stopPeriodicCheck() {
+        if (this.periodicCheckInterval) {
+            clearInterval(this.periodicCheckInterval);
+            this.periodicCheckInterval = null;
+            console.log('Periodic check stopped');
+        }
     }
 
     setupMutationObserver() {
@@ -459,10 +481,6 @@ class AdBlocker {
         };
     }
     
-    // 手動でチェック実行
-    forceCheck() {
-        this.hideAds();
-    }
 }
 
 // グローバルに1つだけインスタンスを作成

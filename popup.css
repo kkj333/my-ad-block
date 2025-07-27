@@ -105,26 +105,16 @@ input:checked + .slider:before {
 
 .actions {
   display: flex;
-  gap: 8px;
+  justify-content: center;
 }
 
 .actions button {
-  flex: 1;
-  padding: 8px 12px;
+  padding: 8px 16px;
   border: none;
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
   transition: background-color 0.2s;
-}
-
-#force-check {
-  background: #4CAF50;
-  color: white;
-}
-
-#force-check:hover {
-  background: #45a049;
 }
 
 #reset-site {
