@@ -68,7 +68,37 @@ this.patterns = {
 - スキップボタン付き広告
 - スポンサードコンテンツ
 
-### 3. サイト別設定システム
+### 3. Background Script（アイコン管理）
+
+```javascript
+class IconManager {
+  constructor() {
+    this.tabStates = new Map(); // tabId -> {enabled: boolean, domain: string}
+  }
+
+  updateIconForTab(tabId) {
+    const enabled = this.tabStates.get(tabId)?.enabled ?? true;
+    
+    const iconPath = enabled ? {
+      "16": "icons/active-small.svg",    // 緑のAD+禁止線
+      "32": "icons/active-medium.svg"
+    } : {
+      "16": "icons/inactive-small.svg",  // グレーのADのみ
+      "32": "icons/inactive-medium.svg"
+    };
+    
+    chrome.action.setIcon({ tabId, path: iconPath });
+  }
+}
+```
+
+**やっていること**：
+- タブごとの広告ブロック状態を管理
+- Content Scriptからの状態変更通知を受信
+- タブ切り替え時に適切なアイコンを表示
+- 直感的な視覚フィードバックを提供
+
+### 4. サイト別設定システム
 
 ```javascript
 // Chrome Storage APIを使用した設定管理
@@ -223,11 +253,25 @@ const maxCheck = 100; // 制限
 
 ### サイト別制御の使用例
 ```
-1. 拡張機能アイコンをクリック
-2. ポップアップ表示: "現在のサイト: example.com"
-3. トグルスイッチOFF → ブロック停止
-4. 設定がChrome Storageに保存
-5. 次回訪問時も設定が維持される
+1. ツールバーで現在の状態確認
+   - 🟢 緑のアイコン: ブロック有効
+   - ⚫ グレーのアイコン: ブロック無効
+2. 拡張機能アイコンをクリック
+3. ポップアップ表示: "現在のサイト: example.com"
+4. トグルスイッチOFF → ブロック停止
+5. アイコンが即座にグレーに変化
+6. 設定がChrome Storageに保存
+7. 次回訪問時も設定が維持される
+```
+
+### アイコンデザインの改良
+```
+従来: 🛡️ シールドマーク（用途不明）
+改良後: 🔴 "AD"文字 + 禁止線（広告ブロック明示）
+
+- 有効: 緑の背景 + "AD" + 赤い禁止線
+- 無効: グレーの背景 + "AD"文字のみ
+- ファイル名: active-small.svg（意味のある命名）
 ```
 
 ## まとめ
@@ -239,6 +283,7 @@ const maxCheck = 100; // 制限
 - ✅ **直感的なUI**（ポップアップで簡単操作）
 - ✅ **設定永続化**（Chrome Storage APIで自動保存）
 - ✅ **リアルタイム統計**（ブロック数の表示）
+- ✅ **アイコン状態表示**（ツールバーで一目で状態確認）
 
 ### 従来からの機能
 - ✅ **様々な広告形式に対応**（バナー、動画、テキスト）
@@ -251,5 +296,7 @@ const maxCheck = 100; // 制限
 - **条件分岐最適化**: 無効時は処理を完全停止
 - **通信システム**: PopupとContent Scriptの効率的な連携
 - **パターン改良**: より精密な広告検出と誤検出防止
+- **アイコン管理**: Background Scriptによる状態の視覚化
+- **ファイル命名**: 意味のある名前でマジックナンバー排除
 
 ユーザーが必要なサイトでは広告ブロックを無効にでき、重要なコンテンツを保護しながら効果的に広告をブロックする、非常に実用的なツールです！

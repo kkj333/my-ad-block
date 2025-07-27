@@ -27,27 +27,56 @@ class AdBlocker {
             // サイト別設定を読み込み
             await this.loadSiteSettings();
             
+            // メッセージリスナーを設定
+            this.setupMessageListener();
+            
             if (this.isEnabled) {
                 // 初回実行
                 this.hideAds();
                 
                 // DOM変更の監視
                 this.setupMutationObserver();
+                
+                // DOMが完全に読み込まれた後にも実行
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', () => {
+                        setTimeout(() => this.hideAds(), 100);
+                    });
+                }
+                
+                // ページ完全読み込み後にも実行
+                if (document.readyState !== 'complete') {
+                    window.addEventListener('load', () => {
+                        setTimeout(() => this.hideAds(), 500);
+                    });
+                }
             }
             
-            // メッセージリスナーを設定
-            this.setupMessageListener();
-            
             console.log('AdBlocker initialized:', this.isEnabled ? 'enabled' : 'disabled');
+            
+            // Background scriptに初期状態を通知
+            this.notifyBackgroundScript();
         } catch (error) {
             console.error('AdBlocker initialization failed:', error);
+            // エラーが発生してもデフォルトで有効にする
+            this.isEnabled = true;
+            this.hideAds();
+            this.setupMutationObserver();
         }
     }
     
     async loadSiteSettings() {
         try {
-            const result = await chrome.storage.local.get([this.currentDomain]);
-            this.isEnabled = result[this.currentDomain] !== false; // デフォルトはtrue
+            // Chrome Storage APIが利用可能かチェック
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+                const result = await chrome.storage.local.get([this.currentDomain]);
+                this.isEnabled = result[this.currentDomain] !== false; // デフォルトはtrue
+                console.log(`Site settings loaded for ${this.currentDomain}:`, this.isEnabled);
+            } else {
+                // Chrome Storage APIが利用できない場合（開発環境等）
+                console.log('Chrome Storage API not available, using default settings');
+                this.isEnabled = true;
+            }
         } catch (error) {
             console.warn('Failed to load site settings:', error);
             this.isEnabled = true; // フォールバック
@@ -55,33 +84,41 @@ class AdBlocker {
     }
 
     setupMessageListener() {
-        chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-            switch (message.action) {
-                case 'toggleBlocking':
-                    this.isEnabled = message.enabled;
-                    if (this.isEnabled) {
-                        this.startBlocking();
-                    } else {
-                        this.stopBlocking();
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.onMessage) {
+                chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+                    switch (message.action) {
+                        case 'toggleBlocking':
+                            this.isEnabled = message.enabled;
+                            if (this.isEnabled) {
+                                this.startBlocking();
+                            } else {
+                                this.stopBlocking();
+                            }
+                            // Background scriptに状態変更を通知
+                            this.notifyBackgroundScript();
+                            sendResponse({ success: true });
+                            break;
+                            
+                        case 'getStats':
+                            sendResponse({
+                                blockedCount: this.adBlockCount,
+                                isEnabled: this.isEnabled
+                            });
+                            break;
+                            
+                        case 'forceCheck':
+                            if (this.isEnabled) {
+                                this.hideAds();
+                            }
+                            sendResponse({ success: true });
+                            break;
                     }
-                    sendResponse({ success: true });
-                    break;
-                    
-                case 'getStats':
-                    sendResponse({
-                        blockedCount: this.adBlockCount,
-                        isEnabled: this.isEnabled
-                    });
-                    break;
-                    
-                case 'forceCheck':
-                    if (this.isEnabled) {
-                        this.hideAds();
-                    }
-                    sendResponse({ success: true });
-                    break;
+                });
             }
-        });
+        } catch (error) {
+            console.warn('Failed to setup message listener:', error);
+        }
     }
 
     startBlocking() {
@@ -396,6 +433,24 @@ class AdBlocker {
         }
     }
     
+    // Background scriptに状態を通知
+    notifyBackgroundScript() {
+        try {
+            if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+                chrome.runtime.sendMessage({
+                    action: 'updateTabState',
+                    enabled: this.isEnabled,
+                    domain: this.currentDomain
+                }).catch(error => {
+                    // Background scriptが利用できない場合は無視
+                    console.log('Background script not available');
+                });
+            }
+        } catch (error) {
+            console.warn('Failed to notify background script:', error);
+        }
+    }
+
     // 統計情報取得
     getStats() {
         return {
