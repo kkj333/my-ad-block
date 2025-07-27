@@ -4,6 +4,16 @@
   "version":"1.0.0",
   "manifest_version":3,
   
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "MyAdBlock"
+  },
+  
   "content_scripts":[
     {
       "matches":["*://*/*"],
