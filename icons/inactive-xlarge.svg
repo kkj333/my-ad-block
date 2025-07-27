@@ -1,0 +1,5 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Inactive state: AD without block symbol -->
+  <circle cx="64" cy="64" r="56" fill="#9E9E9E" stroke="#616161" stroke-width="8"/>
+  <text x="64" y="84" text-anchor="middle" fill="white" font-family="Arial, sans-serif" font-size="48" font-weight="bold">AD</text>
+</svg>
